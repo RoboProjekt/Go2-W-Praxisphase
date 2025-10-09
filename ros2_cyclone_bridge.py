@@ -4,6 +4,10 @@ Simple DDS <-> ROS2 bridge for Unitree GO2W SDK topics (strict DDS mode).
 
 This version assumes Cyclone DDS and the SDK are installed and importable.
 It will raise on missing dependencies.
+
+Clone Git "https://github.com/unitreerobotics/unitree_sdk2_python"
+Move "ros2_cyclone_bridge.py" to "unitree_sdk2_python/example/go2w/bridge/"
+final result: ".../unitree_sdk2_python/example/go2w/bridge/ros2_cyclone_bridge.py"
 """
 import json
 import sys

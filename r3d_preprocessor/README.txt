@@ -6,3 +6,5 @@ ros2 run r3d_preprocessor pcd_to_graph --ros-args -p pcd_path:=/home/bauya/maps/
 # To publish the .pkl you can run the publisher. It is going to load the Marker and edge graphs of the .pkl onto the ros topics /r3d_global_voxel_map and /r3d_global_graph_edges. The green Blocks represent the ground and can always be traversed, the yellow Boxes have been identified as steps. The red edges connecting the yellow Boxes are representations of whoch Box is connected to which in order to give the planner information about where the stairs lead. You need to set the fixed frame to /map inorder for it to work
 ros2 run r3d_preprocessor voxel_map_publisher --ros-args -p graph_path:=nav_graph_step25_voxel10.pkl
 
+# To publish the original .pcd scan run the following command
+ros2 run r3d_preprocessor pcd_server --ros-args -p pcd_path:=~/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/environment.pcd

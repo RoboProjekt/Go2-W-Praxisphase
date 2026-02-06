@@ -1,3 +1,5 @@
+R3D_Planner is a package for real 3d-path planning. It uses a preprocessor and live path planning to make a usable and adaptive Navigation Package for 3d applications. The goal was to make it possible to traverse multiple stories with stairs. It was developed for use with a Unitree Go2W but can be used with any Robot that is capable of climbing stairs.
+
 # Loads the planner with a standart map called graph.pkl
 ros2 run r3d_planner global_planner
 

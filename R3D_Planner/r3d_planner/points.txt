@@ -1,0 +1,39 @@
+----BEFEHL ZUM SENDEN VON PFAD PUNKTEN ----
+
+(Home -> Tür_innen_92)
+ros2 action send_goal /compute_path_to_pose nav2_msgs/action/ComputePathToPose "{
+  use_start: true,
+  start: {
+    header: {frame_id: 'map'},
+    pose: {
+      position: {x: -1.58, y: -0.5, z: -0.25},
+      orientation: {x: 0.0, y: 0.0, z: -0.707, w: 0.707}
+    }
+  },
+  goal: {
+    header: {frame_id: 'map'},
+    pose: {
+      position: {x: 15.75, y: -3.21, z: -0.2},
+      orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}
+    }
+  },
+  planner_id: 'GridBased'
+}"
+
+
+----STARTPUNKTE (Markiert auf Boden)----
+
+Home: 		{x: -1.58, y: -0.5, z: -0.25} {x: 0.0, y: 0.0, z: -0.707, w: 0.707}
+
+Tür_innen_97:	{x: -0.03, y: -3.07 z: -0.25} {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+
+Tür_außen_97:	{x: -5.06, y: 2.67, z: -0.2} {x: 0.0, y: 0.0, z: 0.707, w: 0.707}
+
+Tür_innen_92:	{x: 15.75, y: -3.21, z: -0.2} {x: 0.0, y: 0.0, z: 1.0, w: 0.0}
+
+
+----ENDPUNKTE----
+
+Sofa:		{x: 2.78, y: 0.64, z: -0.25} {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+
+Bambulab:	{x: 11.38, y: 1.93, z: -0.2} {x: 0.0, y: 0.0, z: 0.707, w: 0.707}

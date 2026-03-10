@@ -1,0 +1,40 @@
+---- A List of all available Filters ----
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args \
+  -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/HomeLab_test1_LIO.pcd \
+  -p voxel_size_cm:=5.0 \
+  -p max_step_height_cm:=25.0 \
+  -p min_points_per_sqm:=10.0 \
+  -p min_points_per_voxel:=1 \
+  -p floor_height_tolerance:=0.03 \
+  -p ground_fill:=true \
+  -p robot_base_clearance_cm:=10.0 \
+  -p robot_narrow_radius_cm:=30.0
+
+
+pcd_path: Path to the .pcd file you want to load as base map
+
+voxel_size_cm: The size of the final voxels after running the package
+
+max_step_height_cm: Maximum height of an obstacle to be seen as a step/traversible area
+
+min_points_per_sqm: Only Areas (of 1 sqare meter) on the ground that have been hit by this amount of rays will be used for ground fill
+
+min_points_per_voxel: Filters the .pcd for artefacts and dynamic objects that haven't been scanned for to long (Number of hits)
+
+floor_height_tolerance: Amount of deviation of groundscans allowed for groundfill
+
+ground_fill: Boolean to disable ground filling algorithms if the scan is good enough
+
+robot_base_clearance_cm: The maximum ground deviation that is assigned traversible without changing the robot state (also dependent on voxel size)
+
+robot_narrow_radius_cm: The minimum width of the Robot (including some room for error) -> assigns voxels a limited rotation so that the robot wont rotate into objects
+
+
+
+
+
+
+
+
+

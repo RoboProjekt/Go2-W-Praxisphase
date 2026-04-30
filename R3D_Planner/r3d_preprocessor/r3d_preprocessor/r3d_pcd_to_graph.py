@@ -17,19 +17,29 @@ class VoxelNavigationGraph:
         self.pcd_path = pcd_path
         self.voxel_size = voxel_size
         
-        # --- ROBOTER DIMENSIONEN ---
+        # --- ROBOTER DIMENSIONEN (Jetzt dynamisch überschreibbar) ---
         self.robot_radius = 0.40  
         self.narrow_radius = 0.30 
         self.robot_height = 0.80 
         self.robot_base_clearance = 0.10 
         
+        # --- TREPPEN PARAMETER ---
         self.min_stair_height = 0.05 
         self.max_stair_height = max_stair_height
         
+        # --- BODENERKENNUNG PARAMETER ---
         self.min_points_per_sqm = 10.0 
         self.floor_height_tolerance = 0.02
         self.min_points_per_voxel = 3 
         self.enable_ground_fill = True 
+        
+        self.analysis_grid_size = 0.20
+        self.cluster_gap_threshold = 0.20
+        
+        # --- LÜCKENFÜLLER (PLANE FILL) PARAMETER ---
+        self.fill_plane_iterations = 2
+        self.fill_plane_search_radius = 2
+        self.fill_plane_min_neighbors = 4
         
         self.G = nx.Graph()
         self.voxel_grid = None
@@ -84,9 +94,8 @@ class VoxelNavigationGraph:
         points = np.asarray(pcd.points)
         if len(points) == 0: return pcd
 
-        analysis_grid_size = 0.2 
         min_bound = points.min(axis=0)
-        grid_indices = np.floor((points[:, :2] - min_bound[:2]) / analysis_grid_size).astype(int)
+        grid_indices = np.floor((points[:, :2] - min_bound[:2]) / self.analysis_grid_size).astype(int)
         
         grid_dict = {}
         for idx, (ix, iy) in enumerate(grid_indices):
@@ -96,7 +105,7 @@ class VoxelNavigationGraph:
             grid_dict[cell_key].append(z_val)
             
         new_points = []
-        min_points_in_cell = max(3, int(self.min_points_per_sqm * (analysis_grid_size**2)))
+        min_points_in_cell = max(3, int(self.min_points_per_sqm * (self.analysis_grid_size**2)))
         added_count = 0
         
         for (ix, iy), z_values in grid_dict.items():
@@ -107,7 +116,7 @@ class VoxelNavigationGraph:
             clusters = []
             current_cluster = [z_values[0]]
             for i in range(1, len(z_values)):
-                if z_values[i] - z_values[i-1] > 0.20: 
+                if z_values[i] - z_values[i-1] > self.cluster_gap_threshold: 
                     clusters.append(current_cluster)
                     current_cluster = []
                 current_cluster.append(z_values[i])
@@ -121,11 +130,11 @@ class VoxelNavigationGraph:
                 
                 if (z_max - z_min) < ((2 * self.floor_height_tolerance) + 0.02):
                     z_mean = cluster.mean()
-                    wx_start = min_bound[0] + ix * analysis_grid_size
-                    wy_start = min_bound[1] + iy * analysis_grid_size
+                    wx_start = min_bound[0] + ix * self.analysis_grid_size
+                    wy_start = min_bound[1] + iy * self.analysis_grid_size
                     fill_step = self.voxel_size / 2.0 
-                    for fx in np.arange(wx_start, wx_start + analysis_grid_size, fill_step):
-                        for fy in np.arange(wy_start, wy_start + analysis_grid_size, fill_step):
+                    for fx in np.arange(wx_start, wx_start + self.analysis_grid_size, fill_step):
+                        for fy in np.arange(wy_start, wy_start + self.analysis_grid_size, fill_step):
                             new_points.append([fx, fy, z_mean])
                             added_count += 1
                             
@@ -177,7 +186,7 @@ class VoxelNavigationGraph:
         
         if self.enable_ground_fill:
             self.log("2. Starte 'Plane Filling' (Nachbarschaft)...")
-            self._fill_floor_planes(iterations=2, search_radius=2)
+            self._fill_floor_planes(iterations=self.fill_plane_iterations, search_radius=self.fill_plane_search_radius)
             filled_count = len(self.walkable_nodes)
             self.log(f"-> {filled_count - initial_count} Lücken gefüllt. Total: {filled_count} Knoten.")
 
@@ -208,7 +217,7 @@ class VoxelNavigationGraph:
                                     if check_pos in self.walkable_nodes:
                                         floor_neighbors_count += 1
                         
-                        if floor_neighbors_count >= 4:
+                        if floor_neighbors_count >= self.fill_plane_min_neighbors:
                             if self.check_collision_cylinder(nx, ny, nz, self.robot_radius):
                                 new_nodes.add(candidate)
                                 self.node_types[candidate] = "floor"
@@ -279,6 +288,7 @@ class VoxelNavigationGraph:
 class PcdToGraphNode(Node):
     def __init__(self):
         super().__init__('pcd_to_graph_node')
+        # --- URSPRÜNGLICHE PARAMETER ---
         self.declare_parameter('pcd_path', 'environment.pcd')
         self.declare_parameter('voxel_size_cm', 5.0)
         self.declare_parameter('max_step_height_cm', 25.0)
@@ -289,16 +299,36 @@ class PcdToGraphNode(Node):
         self.declare_parameter('robot_base_clearance_cm', 10.0) 
         self.declare_parameter('robot_narrow_radius_cm', 30.0) 
         
+        # --- NEUE FREIGELEGTE PARAMETER (mit vorherigen Hardcode-Standardwerten) ---
+        self.declare_parameter('min_step_height_cm', 5.0)
+        self.declare_parameter('robot_radius_cm', 40.0)
+        self.declare_parameter('robot_height_cm', 80.0)
+        self.declare_parameter('analysis_grid_size_cm', 20.0)
+        self.declare_parameter('cluster_gap_threshold_cm', 20.0)
+        self.declare_parameter('fill_plane_iterations', 2)
+        self.declare_parameter('fill_plane_search_radius', 2)
+        self.declare_parameter('fill_plane_min_neighbors', 4)
+        
     def run_processing(self):
+        # Basis
         pcd_path_param = self.get_parameter('pcd_path').get_parameter_value().string_value
         voxel_size_cm = self.get_parameter('voxel_size_cm').get_parameter_value().double_value
         max_step_height_cm = self.get_parameter('max_step_height_cm').get_parameter_value().double_value
+        
+        # Erkennung
         min_points_per_sqm = self.get_parameter('min_points_per_sqm').get_parameter_value().double_value
         min_points_per_voxel = self.get_parameter('min_points_per_voxel').get_parameter_value().integer_value
         floor_height_tolerance = self.get_parameter('floor_height_tolerance').get_parameter_value().double_value
         ground_fill = self.get_parameter('ground_fill').get_parameter_value().bool_value
+        
+        # Roboter & Lückenfüller
         clearance_cm = self.get_parameter('robot_base_clearance_cm').get_parameter_value().double_value
         narrow_rad_cm = self.get_parameter('robot_narrow_radius_cm').get_parameter_value().double_value
+        min_step_height_cm = self.get_parameter('min_step_height_cm').get_parameter_value().double_value
+        robot_radius_cm = self.get_parameter('robot_radius_cm').get_parameter_value().double_value
+        robot_height_cm = self.get_parameter('robot_height_cm').get_parameter_value().double_value
+        analysis_grid_size_cm = self.get_parameter('analysis_grid_size_cm').get_parameter_value().double_value
+        cluster_gap_threshold_cm = self.get_parameter('cluster_gap_threshold_cm').get_parameter_value().double_value
         
         pcd_path = os.path.abspath(os.path.expanduser(pcd_path_param))
         voxel_size_m = voxel_size_cm / 100.0
@@ -306,10 +336,12 @@ class PcdToGraphNode(Node):
         clearance_m = clearance_cm / 100.0
         narrow_rad_m = narrow_rad_cm / 100.0
         
-        self.get_logger().info(f"Start Config: Clearance={clearance_cm}cm, NarrowRad={narrow_rad_cm}cm")
+        self.get_logger().info(f"Start Config: Clearance={clearance_cm}cm, NarrowRad={narrow_rad_cm}cm, BaseRad={robot_radius_cm}cm")
 
         try:
             processor = VoxelNavigationGraph(pcd_path=pcd_path, voxel_size=voxel_size_m, max_stair_height=max_step_height_m, logger=self.get_logger())
+            
+            # --- Zuweisung der Parameter ---
             processor.min_points_per_sqm = min_points_per_sqm
             processor.min_points_per_voxel = min_points_per_voxel
             processor.floor_height_tolerance = floor_height_tolerance
@@ -317,12 +349,24 @@ class PcdToGraphNode(Node):
             processor.robot_base_clearance = clearance_m
             processor.narrow_radius = narrow_rad_m
             
+            # Neue Zuweisungen
+            processor.robot_radius = robot_radius_cm / 100.0
+            processor.robot_height = robot_height_cm / 100.0
+            processor.min_stair_height = min_step_height_cm / 100.0
+            processor.analysis_grid_size = analysis_grid_size_cm / 100.0
+            processor.cluster_gap_threshold = cluster_gap_threshold_cm / 100.0
+            processor.fill_plane_iterations = self.get_parameter('fill_plane_iterations').get_parameter_value().integer_value
+            processor.fill_plane_search_radius = self.get_parameter('fill_plane_search_radius').get_parameter_value().integer_value
+            processor.fill_plane_min_neighbors = self.get_parameter('fill_plane_min_neighbors').get_parameter_value().integer_value
+            
             processor.load_and_voxelize()
             processor.identify_walkable_nodes()
             processor.build_graph()
             
             # --- DATEINAME ---
             input_dir = os.path.dirname(pcd_path)
+            
+            # Ich habe den Dateinamen um 'rad' ergänzt, damit man ihn direkt zuordnen kann.
             base_name = (
                 f"nav_graph_"
                 f"step{int(max_step_height_cm)}_"
@@ -332,7 +376,8 @@ class PcdToGraphNode(Node):
                 f"tol{floor_height_tolerance:.3f}_"
                 f"fill{ground_fill}_"
                 f"clear{int(clearance_cm)}_"
-                f"narrow{int(narrow_rad_cm)}"
+                f"narrow{int(narrow_rad_cm)}_"
+                f"rad{int(robot_radius_cm)}"
                 f".pkl"
             )
             

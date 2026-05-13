@@ -1,0 +1,361 @@
+Github Account E-Mail: baau1001@stud.hs-kl.de PW: Mechatronischesprojekt_2025 Username: RoboProjekt
+
+Unitree Go App E-Mail: baau1001@stud.hs-kl.de PW: Praxisphase_2025 Username:
+
+
+----Git Treiber Links----
+
+	-USD/URDF: https://github.com/unitreerobotics/unitree_mujoco/tree/main/unitree_robots/go2w
+	XML in URDF wandeln
+
+	-LIDAR/SLAM: https://github.com/unitreerobotics/point_lio_unilidar/tree/main/launch
+	Unitree 4D LiDAR L1
+	
+	-Driver: https://github.com/unitreerobotics/unitree_sdk2_python
+
+
+----Skript für cyclone dds zu ros fastrtp dds----
+
+	-python3 example/go2w/bridges/dds_to_ros2_bridge.py
+	-ros2 topic pub -r 1 /unitree/lowcmd_in std_msgs/msg/String '{"data":"{\"q\":[0.0,1.0,-1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],\"kp\":70,\"kd\":5}"}'
+
+
+----IsaacSim Befehle----
+	
+	-source ~/Desktop/Isaacsim_files/ros2_Isaacsim_ws/IsaacSim-ros_workspaces/humble_ws/install/setup.bash
+	-source /opt/ros/humble/setup.bash
+
+	-cd ~/isaacsim_4.5_ws/IsaacLab
+	-source env_isaaclab/bin/activate
+
+	-source ~/isaacsim_4.5_ws/IsaacLab/env_isaaclab/bin/activate
+
+	-./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Velocity-Flat-Unitree-Go2W-v0 --num_envs 2048 --max_iterations 10000 --headless 
+	-./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Velocity-Flat-Unitree-Go2W-v0 --resume --load_run 2025-10-20_10-10-04 --num_envs 2048 --max_iterations 10000 
+	
+	-./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py --task Isaac-Velocity-Flat-Unitree-Go2W-v0 --load_run 2025-10-20_10-10-04 --num_envs 1
+
+	-./isaaclab.sh -p -m tensorboard.main --logdir /home/bauya/isaacsim_4.5_ws/IsaacLab/env_isaaclab/bin/tensorboard --logdir /home/bauya/isaacsim_4.5_ws/IsaacLab/logs/rsl_rl/unitree_go2w_flat/2025-10-14_11-30-08 --bind_all
+
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Velocity-Rough-Unitree-Go2W-v0 --resume --load_run 2025-10-23_12-33-17 --num_envs 2048 --max_iterations 10000 
+
+Senden an Unitree:
+scp -r ~/Schreibtisch/Turtlebot_Setup.txt unitree@192.168.123.18:~/
+
+scp -r ~/Desktop/R3D-Planner/ros2_r3d_planner_ws/src unitree@192.168.111.25:~//ros2_humble_docker_ws/src/
+
+
+Ziehen von Unitree:
+scp -r unitree@192.168.111.25:~/Ordner/Datei ~/ziel/Ordner/
+
+scp -r ~/Desktop/R3D-Planner/ros2_r3d_planner_ws/src unitree@192.168.111.25:/home/unitree/ros2_humble_docker_ws/src
+
+scp -r unitree@192.168.111.25:~/Desktop/rotzbag ~/Desktop/
+
+
+
+----go2w examples over dds----
+
+	-cd ~/ros2_ws/build/unitree_sdk2/bin 
+	-./go2w_stand_example eno1
+	
+
+
+----go2w Nodes selbst geschrieben---- (Nur auf PC verfügbar 26.11.2025)
+	-source ~/ros2_ws/install/setup.bash
+	-ros2 run unitree_ros2_example go2w_driver eno1
+	-ros2 run unitree_ros2_example go2w_imu eno1
+
+----kiss-icp aufruf zum mappen----
+
+	-ros2 run tf2_ros static_transform_publisher 0 0 0.5 0 0 0 base_link_test hesai_lidar_link
+	-ros2 run unitree_ros2_example go2w_imu eno1
+	-ros2 run unitree_ros2_example go2w_driver eno1
+	
+	-ros2 launch kiss_icp odometry.launch.py topic:=/hesai_ros_driver/hesai/lidar_points --ros-args -r imu:=/imu/data
+	-ros2 launch kiss_icp odometry.launch.py topic:=/hesai_ros_driver/hesai/lidar_points visualize:=true
+
+----Fast Lio launch----
+	ros2 launch fast_lio fast_mapping.launch.py
+
+----MAP Verkleinern----
+	# -leaf 0.2,0.2,0.2 bedeutet: Ein Punkt alle 20cm
+	pcl_voxel_grid ~/map_saves/test_3.pcd ~/map_saves/test_3_small.pcd -leaf 0.2,0.2,0.2
+
+----Map aufrufen----
+	ros2 run pcl_ros pcd_to_pointcloud --ros-args -p file_name:=/home/bauya/map_saves/test_3_small.pcd -p frame_id:=map -p latch:=true
+
+
+----octomap Aufrufen----
+	ros2 launch fast_lio octomap.launch.py (--ros-args --log-level debug)
+	ros2 launch fast_lio fast_mapping.launch.py
+	ros2 bag play Lio_scan_1 --clock -r 1.0
+	
+	Map speichern:
+	ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=map_saves/clean_map_test_1.ot (octomap.launch.py muss noch laufen)
+	
+	In pcd umwandeln: 
+	1.Terminal: ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/home/bauya/map_saves/HomeLab_test_1.ot -p frame_id:=map ()
+	2.Terminal: python3 ~/map_saves/ot_to_pcd.py
+
+
+
+----custom map_cleaner.py----
+	python map_cleaner.py [EINGABE_DATEI] [MIN_HITS] [OPTIONALE_PARAMETER]
+	
+	Parameter,Beschreibung,Wo im Aufruf?
+	EINGABE_DATEI,Der Pfad zu deiner .pcd Datei (z.B. map.pcd oder C:/Daten/scan.pcd).,1. Stelle nach dem Skriptnamen.
+	MIN_HITS,"Die Mindestanzahl an Punkten pro Voxel. Alles darunter wird gelöscht. (Ganzzahl, z.B. 5).",2. Stelle nach dem Skriptnamen.
+
+	OPTIONALE_PARAMETER ->Flag (Name),Standardwert,Beschreibung
+	--voxel_size,0.10 (10 cm),"Die Kantenlänge eines Voxels in Metern. Kleiner = feineres Raster, größer = groberes Raster."
+	--output,[Name]_clean.pcd,"Der Name der gespeicherten Datei. Wenn nicht angegeben, wird _clean an den Originalnamen angehängt."
+	--no-vis,False (Aus),"Ein ""Schalter"". Wenn du ihn hinschreibst, wird das Visualisierungs-Fenster am Ende NICHT geöffnet. Nützlich für automatisierte Abläufe."
+
+	python map_cleaner.py map.pcd 8 --voxel_size 0.05 --output final_map.pcd --no-vis
+
+
+----PCD in Isaacsim----
+	window->script editor:
+import open3d as o3d
+import numpy as np
+from pxr import Usd, UsdGeom, Gf
+import omni.usd
+
+# --- KONFIGURATION ---
+# Pfad zu deiner .pcd Datei (nutze / statt \ auch unter Windows/Linux)
+pcd_path = "/home/bauya/map_saves/HomeLab_test3_OCTO.pcd" 
+# Wo soll die Punktwolke in der Stage erscheinen?
+prim_path = "/World/PointCloud"
+
+try:
+    # 1. PCD Datei einlesen
+    print(f"Lade Datei: {pcd_path} ...")
+    pcd = o3d.io.read_point_cloud(pcd_path)
+    
+    if not pcd.has_points():
+        print("FEHLER: Die Datei ist leer oder konnte nicht gelesen werden.")
+    else:
+        # Konvertierung zu Numpy Arrays
+        points = np.asarray(pcd.points)
+        colors = np.asarray(pcd.colors)
+        
+        print(f"Erstelle Punktwolke mit {len(points)} Punkten...")
+
+        # 2. Zugriff auf die aktuelle Stage
+        stage = omni.usd.get_context().get_stage()
+        
+        # 3. USD PointCloud Prim definieren
+        pc_prim = UsdGeom.Points.Define(stage, prim_path)
+        
+        # 4. Punkte (Positionen) setzen
+        # USD erwartet Vt.Vec3fArray, aber Isaac Sim akzeptiert oft direkt Numpy Arrays
+        pc_prim.CreatePointsAttr(points)
+        
+        # 5. Farben setzen (falls vorhanden)
+        if len(colors) > 0:
+            pc_prim.CreateDisplayColorAttr(colors)
+        else:
+            # Falls keine Farben da sind, mache sie weiß
+            pc_prim.CreateDisplayColorAttr([(1, 1, 1)] * len(points))
+
+        # 6. Breite der Punkte setzen (damit man sie sieht)
+        pc_prim.CreateWidthsAttr([0.02] * len(points)) # 2cm Dicke pro Punkt
+
+        print("Fertig! Schau in den Viewport.")
+
+except Exception as e:
+    print(f"Ein Fehler ist aufgetreten: {e}")
+
+
+
+----OCTOMAP Nachbearbeitung NEU----
+3 Terminals: 
+ 1.Terminal: ros2 launch fast_lio octomap.launch.py
+ 2.Terminal: ros2 launch fast_lio fast_mapping.launch.py
+ 3.Terminal: cd ~/Desktop/rotzbag
+	     ros2 bag play Lio_scan_1 --clock -r 1.0
+
+Map Speichern 3 Terminals:
+ 1.Terminal: ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=map_saves/Test_1.ot
+ 2.Terminal: python3 ~/map_saves/ot_to_pcd.py
+ 3.Terminal: ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/home/bauya/map_saves/HomeLab_test_1.ot -p frame_id:=map ()
+
+	Octomap Settings in: ~/fast_lio_ws/src/FAST_LIO/launch/octomap.launch.py
+
+
+----Docker auf Go2w----
+
+docker-compose up -d
+docker exec -it humble_dev_container /bin/bash
+
+----R3D-Preprocessor----
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/RoboLab_map.pcd -p voxel_size_cm:=5.0 -p max_step_height_cm:=20.0 -p min_points_per_sqm:=10.0 -p min_points_per_voxel:=1 -p floor_height_tolerance:=0.03 -p ground_fill:=true -p robot_base_clearance_cm:=10.0 -p robot_narrow_radius_cm:=30.0
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/HomeLab_map1_lidar.pcd  -p voxel_size_cm:=5.0 -p max_step_height_cm:=20.0 -p min_points_per_sqm:=10.0 -p min_points_per_voxel:=1 -p floor_height_tolerance:=0.03 -p ground_fill:=true -p robot_base_clearance_cm:=10.0 -p robot_narrow_radius_cm:=30.0
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args \
+  -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/voxel_05_minhits_7.pcd \
+  -p voxel_size_cm:=5.0 \
+  -p max_step_height_cm:=25.0 \
+  \
+  -p min_points_per_sqm:=10.0 \
+  -p min_points_per_voxel:=1 \
+  -p floor_height_tolerance:=0.03 \
+  -p ground_fill:=true \
+  \
+  -p robot_base_clearance_cm:=10.0 \
+  -p robot_narrow_radius_cm:=30.0 \
+  -p min_step_height_cm:=5.0 \
+  -p robot_radius_cm:=40.0 \
+  -p robot_height_cm:=80.0 \
+  -p analysis_grid_size_cm:=20.0 \
+  -p cluster_gap_threshold_cm:=20.0 \
+  -p fill_plane_iterations:=2 \
+  -p fill_plane_search_radius:=2 \
+  -p fill_plane_min_neighbors:=4
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/voxel_05_minhits_7.pcd -p voxel_size_cm:=5.0 -p max_step_height_cm:=20.0 -p min_points_per_sqm:=1.0 -p min_points_per_voxel:=1 -p floor_height_tolerance:=0.05 -p ground_fill:=false -p robot_base_clearance_cm:=10.0 -p robot_narrow_radius_cm:=30.0
+
+
+ros2 run r3d_preprocessor pcd_to_graph --ros-args -p pcd_path:=/home/bauya/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/Stair_unfiltered.pcd -p voxel_size_cm:=5.0 -p max_step_height_cm:=20.0 -p min_points_per_sqm:=1.0 -p min_points_per_voxel:=7 -p floor_height_tolerance:=0.05 -p ground_fill:=false -p robot_base_clearance_cm:=10.0 -p robot_narrow_radius_cm:=30.0
+
+
+
+----R3D-Planner----
+
+-ros2 run r3d_preprocessor voxel_map_publisher --ros-args -p graph_path:=~/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/nav_graph_step20_voxel5.pkl
+-ros2 run r3d_preprocessor pcd_server --ros-args -p pcd_path:=~/Desktop/R3D-Planner/ros2_r3d_planner_ws/src/r3d_preprocessor/maps/HomeLab_test1_LIO.pcd
+-ros2 run r3d_planner global_planner --ros-args -p map_name:=nav_graph_step20_voxel5.pkl
+-ros2 run r3d_planner local_filter
+-ros2 action send_goal /compute_path_to_pose nav2_msgs/action/ComputePathToPose "{
+  use_start: true,
+  start: {
+    header: {frame_id: 'map'},
+    pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}
+  },
+  goal: {
+    header: {frame_id: 'map'},
+    pose: {position: {x: 5.0, y: 0.0, z: 2.5}, orientation: {w: 1.0}}
+  },
+  planner_id: 'GridBased'
+}"
+Waiting for an action server to become available...
+Sending goal:
+     goal:
+  header:
+    stamp:
+      sec: 0
+      nanosec: 0
+    frame_id: map
+  pose:
+    position:
+      x: 5.0
+      y: 0.0
+      z: 2.5
+    orientation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      w: 1.0
+start:
+  header:
+    stamp:
+      sec: 0
+      nanosec: 0
+    frame_id: map
+  pose:
+    position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    orientation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      w: 1.0
+planner_id: GridBased
+use_start: true
+
+
+./r3d_planner_launch.sh HomeLab_test2_LIO.pcd nav_graph_step25_voxel5_dens10_minpts3_tol0.020.pkl
+
+
+./r3d_planner_launch.sh HomeLab_map1_lidar.pcd nav_graph_step20_voxel10_dens8_minpts2_tol0.050.pkl
+
+ros2 action send_goal /compute_path_to_pose nav2_msgs/action/ComputePathToPose "{
+  use_start: true,
+  start: {
+    header: {frame_id: 'map'},
+    pose: {position: {x: 4.7, y: 3.0, z: -0.3}, orientation: {w: 1.0}}
+  },
+  goal: {
+    header: {frame_id: 'map'},
+    pose: {position: {x: -0.99, y: -1.11, z: -0.3}, orientation: {w: 1.0}}
+  },
+  planner_id: 'GridBased'
+}"
+
+
+ros2 service call /recalibrate_pose std_srvs/srv/Trigger
+
+./r3d_planner_launch.sh voxel_05_minhits_7.pcd nav_graph_step20_voxel5_dens10_minpts1_tol0.030.pkl
+
+
+----Präsi:----
+bauya@bauya-Workstation-M7280BP:<$ ./r3d_planner_launch.sh HomeLab_map1_lidar.pcd nav_graph_step20_voxel10_dens8_minpts2_tol0.050.pkl
+
+bauya@bauya-Workstation-M7280BP:~/Desktop/R3D-Planner/ros2_r3d_planner_ws$ ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 odom base_link
+
+
+----Lidar Fusion----
+
+L1 lidar auf ROS_DOMAIN_ID=0
+
+lidar_fusion aus Hesai und L1 im SDK WS:
+
+ros2 run lidar_fusion lidar_fusion_node   --> läuft auf hesai_lidar_link tf
+
+
+----LIDAR SLAM----
+
+ros2 launch lidarslam lidarslam_fusion.launch.py
+
+
+----Fast LIO 2. Anlauf:---- WINNER ----
+
+cd ~/Desktop/rotzbag
+ros2 bag play fusion_scan_2026_03_11_14_03_52 --clock
+
+ros2 launch fast_lio go2_fusion_mapping.launch.py 
+
+
+
+---- R3D_planner auf Go2W ----
+
+(Außerhalb Docker)
+cd root@ubuntu:/home/unitree/ros2_humble_docker_ws/scripts
+./odom_start.sh  
+
+(Im Docker)
+cd ~/
+./enter_docker.sh
+cd scripts
+./r3d_planner_launch.sh
+
+Punkte für Navigation in points.txt
+
+
+
+---- flythrough Pointcloud ----
+
+~/map_saves/maps_new_lio$ python3 flythrough.py go2w_map_1.pcd 
+2* f6 zum gerade Ziehen von manchen Karten
+
+
+
+
+
+
+

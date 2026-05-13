@@ -1,0 +1,27 @@
+version: '2.4'
+
+services:
+  ros2_humble:
+    # WICHTIG: "desktop" statt "ros-base". 
+    # Enthält alle Build-Tools, Python-Pakete und Grafik-Libs.
+    image: dustynv/ros:humble-desktop-l4t-r35.3.1
+    platform: linux/arm64
+    container_name: humble_dev_container
+    network_mode: host
+    ipc: host
+    privileged: true
+    environment:
+      - ROS_DOMAIN_ID=10
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # Damit GUI-Tools (falls nötig) keinen Ärger machen
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - .:/home/unitree/ros2_humble_docker_ws
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    runtime: nvidia
+    stdin_open: true
+    tty: true
+    working_dir: /home/unitree/ros2_humble_docker_ws
+    command: sleep infinity

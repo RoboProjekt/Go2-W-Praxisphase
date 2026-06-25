@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             # Name des Befehls = package.file:main_funktion
             'pcd_to_graph = r3d_preprocessor.r3d_pcd_to_graph:main',
+            'pcd_analyser = r3d_preprocessor.r3d_pcd_analyser:main',
             'voxel_map_publisher = r3d_preprocessor.r3d_voxel_map_publisher:main',
             'pcd_server = r3d_preprocessor.r3d_pcd_publisher:main',
         ],

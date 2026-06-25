@@ -5,6 +5,7 @@ from rclpy.qos import QoSProfile, DurabilityPolicy
 import open3d as o3d
 import numpy as np
 import os
+import struct
 
 class PCDPublisher(Node):
     def __init__(self):
@@ -13,7 +14,8 @@ class PCDPublisher(Node):
         # Parameter für den Dateipfad
         self.declare_parameter('pcd_path', 'environment.pcd')
         
-        # QoS: TRANSIENT_LOCAL
+        # QoS: TRANSIENT_LOCAL ist wichtig, damit RViz die Karte auch sieht, 
+        # wenn es erst nach dem Start geöffnet wird (Latched Topic).
         qos_profile = QoSProfile(depth=1)
         qos_profile.durability = DurabilityPolicy.TRANSIENT_LOCAL
 
@@ -43,7 +45,7 @@ class PCDPublisher(Node):
             points = np.asarray(pcd.points)
             self.get_logger().info(f"PCD geladen mit {len(points)} Punkten.")
 
-            # Farben laden (falls vorhanden)
+            # Optional: Farben laden (falls vorhanden)
             colors = []
             if pcd.has_colors():
                 colors = np.asarray(pcd.colors) # Open3D speichert RGB als 0.0-1.0 float
@@ -53,7 +55,7 @@ class PCDPublisher(Node):
             
             # 4. Publishen
             self.pub.publish(msg)
-            self.get_logger().info("PCD erfolgreich auf /map_pointcloud veröffentlicht. (Mit Farben!)")
+            self.get_logger().info("PCD erfolgreich auf /map_pointcloud veröffentlicht.")
 
         except Exception as e:
             self.get_logger().error(f"Fehler beim Laden/Publishen: {e}")
@@ -61,49 +63,33 @@ class PCDPublisher(Node):
     def create_pc2_msg(self, points, colors):
         msg = PointCloud2()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "map" 
+        msg.header.frame_id = "map" # Wichtig: Muss im Map-Frame liegen
 
-        # Basis-Layout (X, Y, Z)
+        # Layout definieren
         fields = [
             PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
             PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
             PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
         ]
         
+        # Daten vorbereiten
         if len(colors) > 0:
-            # Wenn Farbe dabei ist, hängen wir das RGB-Feld an (Byte-Offset 12)
-            fields.append(PointField(name='rgb', offset=12, datatype=PointField.UINT32, count=1))
-            msg.point_step = 16 # 3*4 Bytes (XYZ) + 1*4 Bytes (RGB)
-            
-            # Farben von float [0..1] zu uint8 [0..255] konvertieren
-            colors_uint8 = (colors * 255.0).astype(np.uint32)
-            
-            # RGB in einen einzigen 32-Bit Integer packen (Bitshift)
-            rgb_packed = (colors_uint8[:, 0] << 16) | (colors_uint8[:, 1] << 8) | colors_uint8[:, 2]
-            
-            # Numpy Array mit gemischten Datentypen erstellen (float32 für XYZ, uint32 für RGB)
-            buffer = np.zeros(len(points), dtype=[
-                ('x', np.float32),
-                ('y', np.float32),
-                ('z', np.float32),
-                ('rgb', np.uint32)
-            ])
-            buffer['x'] = points[:, 0]
-            buffer['y'] = points[:, 1]
-            buffer['z'] = points[:, 2]
-            buffer['rgb'] = rgb_packed
-            
-            msg.data = buffer.tobytes()
-        else:
-            msg.point_step = 12
-            msg.data = points.astype(np.float32).tobytes()
+            # Wenn Farbe dabei ist, müssen wir RGB packen (etwas komplexer in Python pur)
+            # Der Einfachheit halber publishen wir hier erst mal nur XYZ,
+            # um Struct-Packing Fehler zu vermeiden. Open3D Farben sind float, ROS braucht gepackte Ints.
+            # Für Visualisierung reicht XYZ + "Flat Color" in RViz oft aus.
+            pass 
 
         msg.height = 1
         msg.width = len(points)
         msg.fields = fields
         msg.is_bigendian = False
+        msg.point_step = 12 # 3 * float32 (4 bytes)
         msg.row_step = msg.point_step * points.shape[0]
         msg.is_dense = True
+        
+        # Konvertieren zu Bytes (float32)
+        msg.data = points.astype(np.float32).tobytes()
         
         return msg
 
@@ -112,13 +98,10 @@ def main(args=None):
     node = PCDPublisher()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt: 
-        pass
+    except KeyboardInterrupt: pass
     finally:
         node.destroy_node()
-        # Prüfen ob ROS noch läuft, bevor wir es beenden (verhindert den Fehler)
-        if rclpy.ok():
-            rclpy.shutdown()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -64,6 +64,8 @@ class VoxelMapPublisher(Node):
         self.marker.scale.x = self.voxel_size
         self.marker.scale.y = self.voxel_size
         self.marker.scale.z = self.voxel_size
+        
+        self.marker.color.a = 1.0
 
         # Farben (100% Deckkraft)
         c_floor  = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0) # Grün
